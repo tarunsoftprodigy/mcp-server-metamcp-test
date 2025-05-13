@@ -1,25 +1,30 @@
 FROM ghcr.io/astral-sh/uv:debian
 
-# Install Node.js & npx
+# 1. Install prerequisites
 RUN apt-get update && \
-    apt-get install -y curl gnupg && \
-    curl -fsSL https://deb.nodesource.com/setup_20.x | bash - && \
+    apt-get install -y --no-install-recommends \
+      ca-certificates \
+      curl \
+      gnupg \
+      lsb-release && \
+    rm -rf /var/lib/apt/lists/*
+
+# 2. Setup NodeSource & install Node.js + npx
+RUN curl -fsSL https://deb.nodesource.com/setup_20.x | bash - && \
+    apt-get update && \
     apt-get install -y nodejs && \
     npm install -g npx && \
-    apt-get clean && rm -rf /var/lib/apt/lists/*
+    rm -rf /var/lib/apt/lists/*
 
 WORKDIR /app
 COPY package*.json ./
 RUN npm ci
-COPY . . 
+COPY . .
 RUN npm run build
 
 ENV NODE_ENV=production
 
-# No hard-coded EXPOSE needed; Render will detect $PORT automatically
-# EXPOSE 3000  <- remove this
-
-# Start the MCP server binding to Render’s dynamic port
+# No hard-coded EXPOSE – will bind to $PORT at runtime
 ENTRYPOINT ["sh", "-c", \
   "npx -y @metamcp/mcp-server-metamcp@latest \
      --transport sse \
